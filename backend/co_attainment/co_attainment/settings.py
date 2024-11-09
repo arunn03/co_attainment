@@ -32,7 +32,7 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 CORS_ALLOW_ALL_ORIGINS = True
 
@@ -62,8 +62,10 @@ INSTALLED_APPS = [
     'django_rest_passwordreset',
     'corsheaders',
     'django_filters',
+    'sslserver',
 
     'authentication',
+    'app',
 ]
 
 REST_FRAMEWORK = {
@@ -76,8 +78,8 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=30),
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=365),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=365*100),
 }
 
 MIDDLEWARE = [
@@ -119,8 +121,12 @@ WSGI_APPLICATION = 'co_attainment.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'co_attainment',
+        'USER': 'root',
+        'PASSWORD': 'root1234',
+        'HOST': 'localhost',
+        'PORT': '3306',
     }
 }
 
@@ -159,7 +165,17 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
-STATIC_URL = 'static/'
+# URL for accessing static files
+STATIC_URL = '/static/'
+
+# Local directories where static files for the project are stored (optional if you have custom static files)
+STATICFILES_DIRS = [
+    BASE_DIR / "static",  # Assuming there's a "static" folder in your project directory
+]
+
+# Directory where static files will be collected when running `collectstatic` (for production)
+STATIC_ROOT = BASE_DIR / "staticfiles"  # This is where Django will collect all static files for deployment
+
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field

@@ -163,3 +163,9 @@ websocket-client==1.7.0
 werkzeug==3.0.1
 wrapt==1.16.0
 zipp==3.18.1
+
+
+{
+    "refresh": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6NDg4NDAzNzk0MiwiaWF0IjoxNzMwNDM3OTQyLCJqdGkiOiJlMTFmNDZjOTY5OTc0ZmU0ODU5NTJmMjVkYzU3ZTA1ZCIsInVzZXJfaWQiOjJ9.gi-o0lkHwRWCbDKbhoe-ui4s5f0apRf89XzttmZzIwQ",
+    "access": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzYxOTczOTQyLCJpYXQiOjE3MzA0Mzc5NDIsImp0aSI6ImE3ZjA5NTZlM2ViMDQ4MGM5NzJiOGY3NDRkZTdkZTdmIiwidXNlcl9pZCI6Mn0.I6XK_OI1PRtuoKbmpZJnQuF3N3iWqfbndiBtnto3pn4"
+}

@@ -37,7 +37,7 @@ model.compile(optimizer='adam',
               metrics=['accuracy'])
 
 history = model.fit(datagen.flow(train_images, train_labels, batch_size=64),
-                    epochs=25,
+                    epochs=15,
                     validation_data=(test_images, test_labels))
 
 test_loss, test_acc = model.evaluate(test_images, test_labels)
