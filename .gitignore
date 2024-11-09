@@ -1,4 +1,6 @@
 **/*.csv
 **/__pycache__
-**/.idea
+**/.idea/
 **/.ipynb*
+**/.DS_Store
+**/venv
