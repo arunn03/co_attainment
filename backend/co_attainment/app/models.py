@@ -3,6 +3,8 @@ from django.contrib.auth import get_user_model
 
 import os
 
+from django.shortcuts import get_object_or_404
+
 User = get_user_model()
 
 class Department(models.Model):
@@ -75,43 +77,37 @@ class AnswerSheet(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f'{self.student.roll} - Year {self.year} - Semester {self.semester} - {self.exam_type} - {self.subject.name}'
+        return f'{self.student.roll} - Year {self.year} - Semester {self.semester} - {self.exam_type} - {self.subject.name}{" (deleted)" if self.is_deleted else ""}'
     
     def delete_file(self):
-        if self.file and os.path.isfile(self.file.path):
-            os.remove(self.file.path)
+        if self.file and self.file.storage.exists(self.file.name):
+            self.file.delete(save=False)
     
     def save(self, *args, **kwargs):
+        activity_type = 'created'
+
         if self.pk:
             old_instance = AnswerSheet.objects.get(pk=self.pk)
             old_file = old_instance.file
             if old_file and old_file != self.file:
                 old_file.delete(save=False)
 
-        super().save(*args, **kwargs)
+            activity_type = 'updated' if not self.is_deleted else 'deleted'
 
-        request = kwargs.get('request')
-        if request:
-            activity_type = 'created' if not self.pk else 'updated'
-            ActivityLog.objects.create(
-                staff=request.user.staff,
-                activity_type=activity_type,
-                answer_sheet=self
-            )
+        super().save(*args, **kwargs)
+        
+        # staff = get_object_or_404(Staff, user=request.user)
+        ActivityLog.objects.create(
+            staff=self.uploaded_staff,
+            activity_type=activity_type,
+            answer_sheet=self
+        )
 
     def delete(self, *args, **kwargs):
         self.is_deleted = True
         self.save()
 
-        request = kwargs.get('request')
-        if request:
-            ActivityLog.objects.create(
-                staff=request.user.staff,
-                activity_type='deleted',
-                answer_sheet=self
-            )
-
-        super().delete(*args, **kwargs)
+        # super().delete(*args, **kwargs)
 
 class ActivityLog(models.Model):
     ACTIVITY_TYPE_CHOICES = [

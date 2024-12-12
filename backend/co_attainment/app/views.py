@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status, permissions
 from rest_framework.decorators import action
 from .models import *
-from .serializers import AnswerSheetSerializer
+from .serializers import *
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from modules.ocr import ocr
@@ -18,7 +18,7 @@ class AnswerSheetView(APIView):
 
     def get_queryset(self):
         # Optionally, you can filter the queryset based on the logged-in user
-        return AnswerSheet.objects.all()
+        return AnswerSheet.objects.filter(is_deleted=False)
 
     def get(self, request, *args, **kwargs):
         answer_sheets = self.get_queryset()
@@ -27,7 +27,7 @@ class AnswerSheetView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
     
     def post(self, request, *args, **kwargs):
-        # try:
+        try:
             # Extract common fields
             subject = Subject.objects.get(sub_code=request.data['subject'])
             year = request.data['year']
@@ -46,13 +46,12 @@ class AnswerSheetView(APIView):
             random.shuffle(students)
 
             answer_sheets_data = []
-            for index, data in enumerate(request.FILES.getlist('answer_sheets')):
+            for data in request.FILES.getlist('answer_sheets'):
                 student = students.pop()
                 file_bytes = np.fromstring(data.read(), np.uint8)
                 answer_script_img = cv2.imdecode(file_bytes, cv2.IMREAD_GRAYSCALE)
                 marks = ocr.recognize_marks(answer_script_img)
                 marks = {key: int(value) for key, value in marks.items()}
-                print(marks.values())
                 total_mark = sum(marks.values())
                 marks = json.dumps(marks)
                 if is_encryption_enabled and private_key is not None:
@@ -73,45 +72,62 @@ class AnswerSheetView(APIView):
                     'exam_type': exam_type,
                     'marks': marks,
                     'total_mark': total_mark,
-                    'file': data
+                    'file': data,
+                    # 'course_outcome': None,
                 })
 
             # Bulk creation inside transaction
             # with transaction.atomic():
-            serializer = AnswerSheetSerializer(data=answer_sheets_data, many=True)
-            # print(serializer.initial_data)
+            serializer = AnswerSheetCreateSerializer(data=answer_sheets_data, many=True)
             if serializer.is_valid():
                 serializer.save()
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
+                return Response({"message": "Answersheets are created successfully"}, status=status.HTTP_201_CREATED)
             else:
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        # except Exception as e:
-        #     return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         
     def put(self, request, pk, *args, **kwargs):
         try:
             # Fetch the existing answer sheet
+            staff = get_object_or_404(Staff, user=request.user)
+            is_encryption_enabled = staff.dept.alias == 'COE'
+            private_key = request.data.get('pr_key', None)
+
             answer_sheet = AnswerSheet.objects.get(pk=pk, is_deleted=False)
+
+            subject = answer_sheet.subject
             
             # Check if a new file is uploaded (i.e., file field has been modified)
-            new_file = request.data.get('file', None)
-            old_file = answer_sheet.file
+            new_file = request.FILES.get('file', None)
             
-            if new_file and new_file != old_file:
+            if new_file:
                 # If the file is modified, re-run recognize_marks to update marks and total_mark
-                marks = ocr.recognize_marks(new_file)
+                file_bytes = np.fromstring(new_file.read(), np.uint8)
+                answer_script_img = cv2.imdecode(file_bytes, cv2.IMREAD_GRAYSCALE)
+                marks = ocr.recognize_marks(answer_script_img)
+                marks = {key: int(value) for key, value in marks.items()}
                 total_mark = sum(marks.values())
+                marks = json.dumps(marks)
+                if is_encryption_enabled and private_key is not None:
+                    public_key = PublicKey.objects.get(dept=subject.dept)
+                    marks = json.dumps(encrypt_message(
+                        load_private_key(private_key),
+                        load_public_key(public_key.key),
+                        marks
+                    ))
 
                 # Update request data with new marks and total_mark
                 request.data.update({
+                    'uploading_staff': staff,
                     'marks': marks,
-                    'total_mark': total_mark
+                    'total_mark': total_mark,
                 })
 
             # Use the serializer to validate and save changes
             serializer = AnswerSheetSerializer(answer_sheet, data=request.data, partial=True)
             if serializer.is_valid():
-                serializer.save(request=request)
+                serializer.save()
                 return Response(serializer.data, status=status.HTTP_200_OK)
             else:
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -122,7 +138,7 @@ class AnswerSheetView(APIView):
     def delete(self, request, pk, *args, **kwargs):
         try:
             answer_sheet = AnswerSheet.objects.get(pk=pk, is_deleted=False)
-            answer_sheet.delete(request=request)
+            answer_sheet.delete()
             return Response({'status': 'Answer Sheet deleted'}, status=status.HTTP_200_OK)
         except AnswerSheet.DoesNotExist:
             return Response({'error': 'Answer Sheet not found'}, status=status.HTTP_404_NOT_FOUND)
@@ -132,14 +148,11 @@ class AnswerSheetRetrieveView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return AnswerSheet.objects.all()
+        return AnswerSheet.objects.filter(is_deleted=False)
 
     def post(self, request, *args, **kwargs):
         private_key_data = request.data.get('pr_key', None)
         
-        # Load private key from provided data
-        private_key = load_private_key(private_key_data)
-
         # Retrieve the queryset
         answer_sheets = self.get_queryset()
         decrypted_data = []
@@ -152,11 +165,15 @@ class AnswerSheetRetrieveView(APIView):
             # Check if 'marks' field is in the expected encrypted JSON format
             try:
                 uploaded_staff = data.get('uploaded_staff')
-                # print(data)
                 if uploaded_staff['dept']['alias'] == 'COE':
-                    encrypted_marks = json.loads(data.get('marks'))
+                    encrypted_marks = data.get('marks')
+                    if isinstance(encrypted_marks, str):
+                        encrypted_marks = json.loads(encrypted_marks)
                     if not private_key_data:
                         return Response({'error': 'Missing private key for decryption'}, status=status.HTTP_400_BAD_REQUEST)
+                    
+                    # Load private key from provided data
+                    private_key = load_private_key(private_key_data)
                     decrypted_marks = decrypt_message(
                         receiver_private_key=private_key,
                         sender_public_key=load_public_key(PublicKey.objects.get(dept=uploaded_staff['dept']['id']).key),
