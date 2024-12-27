@@ -35,4 +35,4 @@ def decrypt_message(receiver_private_key, sender_public_key, encrypted_data):
         hashes.SHA256()
     )
 
-    return decrypted_message.decode()
+    return decrypted_message

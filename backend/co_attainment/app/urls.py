@@ -15,4 +15,9 @@ urlpatterns = [
 
     # Delete endpoint for a specific answer sheet
     path('answersheets/<int:pk>/delete/', AnswerSheetView.as_view(), name='answersheet-delete'),
+
+    path('co/compute/', CourseOutcomeView.as_view(), name='co-create'),
+    path('co/list/', CourseOutcomeView.as_view(), name='co-list'),
+
+    path('logs/', ActivityLogView.as_view(), name='log-list'),
 ]

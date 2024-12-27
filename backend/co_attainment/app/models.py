@@ -1,15 +1,11 @@
 from django.db import models
 from django.contrib.auth import get_user_model
 
-import os
-
-from django.shortcuts import get_object_or_404
-
 User = get_user_model()
 
 class Department(models.Model):
-    name = models.CharField(max_length=256)
-    alias = models.CharField(max_length=10)
+    name = models.CharField(max_length=256, unique=True)
+    alias = models.CharField(max_length=10, unique=True)
 
     def __str__(self):
         return self.alias
@@ -23,7 +19,7 @@ class PublicKey(models.Model):
 
 class Student(models.Model):
     name = models.CharField(max_length=256)
-    roll = models.CharField(max_length=15)
+    roll = models.CharField(max_length=15, unique=True)
     dept = models.ForeignKey(Department, on_delete=models.CASCADE)
     year = models.PositiveSmallIntegerField()
     semester = models.PositiveSmallIntegerField()
@@ -40,10 +36,18 @@ class Staff(models.Model):
         return f'{self.user.first_name} {self.user.last_name}'
 
 class Subject(models.Model):
-    sub_code = models.CharField(max_length=10, unique=True)
+    sub_code = models.CharField(max_length=10)
     name = models.CharField(max_length=256)
     dept = models.ForeignKey(Department, on_delete=models.CASCADE)
     credits = models.PositiveSmallIntegerField()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['sub_code', 'dept'],
+                name='unique_subject'
+            )
+        ]
 
     def __str__(self):
         return self.name
@@ -70,11 +74,19 @@ class AnswerSheet(models.Model):
     exam_type = models.CharField(max_length=10, choices=EXAM_TYPE_CHOICES)
     marks = models.JSONField()
     total_mark = models.PositiveIntegerField()
-    course_outcome = models.ForeignKey(CourseOutcome, null=True, blank=True, on_delete=models.SET_NULL)
+    course_outcome = models.ForeignKey(CourseOutcome, null=True, blank=True, on_delete=models.SET_NULL, related_name='answer_sheets')
     file = models.FileField(upload_to='answer_sheets/')
     is_deleted = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['student', 'year', 'semester', 'exam_type', 'subject', 'is_deleted'],
+                name='unique_answer_sheet'
+            )
+        ]
 
     def __str__(self):
         return f'{self.student.roll} - Year {self.year} - Semester {self.semester} - {self.exam_type} - {self.subject.name}{" (deleted)" if self.is_deleted else ""}'

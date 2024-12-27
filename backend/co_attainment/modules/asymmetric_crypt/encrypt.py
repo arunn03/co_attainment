@@ -6,17 +6,19 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 
 def encrypt_message(sender_private_key, receiver_public_key, message):
+    if not isinstance(message, bytes):
+        message = message.encode()
 
     # Encrypt the message with a symmetric key (AES)
     symmetric_key = os.urandom(32)  # 256-bit key for AES
     iv = os.urandom(16)  # Initialization vector
     cipher = Cipher(algorithms.AES(symmetric_key), modes.CFB(iv), backend=default_backend())
     encryptor = cipher.encryptor()
-    encrypted_message = encryptor.update(message.encode()) + encryptor.finalize()
+    encrypted_message = encryptor.update(message) + encryptor.finalize()
 
     # Sign the original message with the sender's private key
     signed_message = sender_private_key.sign(
-        message.encode(),
+        message,
         padding.PSS(
             mgf=padding.MGF1(hashes.SHA256()),
             salt_length=padding.PSS.MAX_LENGTH

@@ -1,5 +1,8 @@
 from rest_framework import serializers
 from .models import *
+from authentication.serializers import UserSerializer
+
+from mimetypes import guess_type
 
 class DepartmentSerializer(serializers.ModelSerializer):
     class Meta:
@@ -7,21 +10,22 @@ class DepartmentSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class StudentSerializer(serializers.ModelSerializer):
-    dept = DepartmentSerializer()
+    dept = DepartmentSerializer(read_only=True)
 
     class Meta:
         model = Student
         fields = '__all__'  # Adjust based on the fields of the Student model
 
 class StaffSerializer(serializers.ModelSerializer):
-    dept = DepartmentSerializer()
+    dept = DepartmentSerializer(read_only=True)
+    user = UserSerializer(read_only=True)
 
     class Meta:
         model = Staff
         fields = '__all__'   # Adjust based on the fields of the Staff model
 
 class SubjectSerializer(serializers.ModelSerializer):
-    dept = DepartmentSerializer()
+    dept = DepartmentSerializer(read_only=True)
 
     class Meta:
         model = Subject
@@ -35,45 +39,47 @@ class CourseOutcomeSerializer(serializers.ModelSerializer):
 class AnswerSheetCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = AnswerSheet
-        fields = ['student', 'handling_staff', 'uploaded_staff', 'subject', 'year', 'semester', 'exam_type', 'marks', 'total_mark', 'course_outcome', 'file']
+        fields = ['id', 'student', 'handling_staff', 'uploaded_staff', 'subject', 'year', 'semester', 'exam_type', 'marks', 'total_mark', 'file']
 
     def validate_file(self, value):
         # Ensure the uploaded file is an image
-        if not value.content_type.startswith('image/'):
+        mime_type, _ = guess_type(value.name)
+        if not mime_type or not mime_type.startswith('image/'):
             raise serializers.ValidationError("Upload a valid image file.")
         return value
 
-    # def create(self, validated_data):
-    #     request = self.context.get('request')  # Retrieve the request object
-    #     staff = self.context.get('staff')
-    #     answer_sheet = AnswerSheet.objects.create(**validated_data)
-
-    #     # Create the ActivityLog entry for the creation of the AnswerSheet
-    #     if request:  # Ensure the request is available
-    #         activity_type = 'created'
-    #         ActivityLog.objects.create(
-    #             staff=staff,  # Accessing the staff from the request
-    #             activity_type=activity_type,
-    #             answer_sheet=answer_sheet
-    #         )
-
-    #     return answer_sheet
 class AnswerSheetSerializer(serializers.ModelSerializer):
-    student = StudentSerializer()
-    handling_staff = StaffSerializer()
-    uploaded_staff = StaffSerializer()
-    subject = SubjectSerializer()
-    course_outcome = CourseOutcomeSerializer(many=True)  # Assuming a many-to-many relationship for course outcomes
+    student = StudentSerializer(read_only=True)
+    handling_staff = StaffSerializer(read_only=True)
+    uploaded_staff = StaffSerializer(read_only=True)
+    subject = SubjectSerializer(read_only=True)
+    # course_outcome = CourseOutcomeSerializer(read_only=True)
 
     class Meta:
         model = AnswerSheet
-        fields = ['id', 'student', 'handling_staff', 'uploaded_staff', 'subject', 'year', 'semester', 'exam_type', 'marks', 'total_mark', 'course_outcome', 'file']
+        fields = ['id', 'student', 'handling_staff', 'uploaded_staff', 'subject', 'year', 'semester', 'exam_type', 'marks', 'total_mark', 'file']
 
     def validate_file(self, value):
         # Ensure the uploaded file is an image
-        if not value.content_type.startswith('image/'):
+        mime_type, _ = guess_type(value.name)
+        if not mime_type or not mime_type.startswith('image/'):
             raise serializers.ValidationError("Upload a valid image file.")
         return value
 
     def create(self, validated_data):
         return AnswerSheet.objects.create(**validated_data)
+
+class CourseOutcomeRetrieveSerializer(serializers.ModelSerializer):
+    answer_sheets = AnswerSheetSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = CourseOutcome
+        fields = 'id', 'co_mappings', 'course_outcomes', 'answer_sheets'
+
+class ActivityLogSerializer(serializers.ModelSerializer):
+    staff = StaffSerializer(read_only=True)
+    answer_sheet = AnswerSheetSerializer(read_only=True)
+
+    class Meta:
+        model = ActivityLog
+        fields = '__all__'

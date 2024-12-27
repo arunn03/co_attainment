@@ -1,48 +1,87 @@
-import React, { useState } from 'react';
-import forge from 'node-forge';
+// import React from 'react';
+import {
+  BrowserRouter as Router,
+  Route,
+  Routes,
+  Navigate,
+} from "react-router-dom";
+import Login from "./components/Login";
+import Home from "./containers/Home";
+import PrivateRoute from "./components/PrivateRoute";
+import ForgotPassword from "./components/ForgotPassword";
+import PrivateKey from "./components/PrivateKey";
+import AnswerSheetUpload from "./containers/AnswerSheetUpload";
+import AnswerSheetView from "./containers/AnswerSheetView";
+import COCompute from "./containers/COCompute";
+import LogView from "./containers/LogView";
+import Navbar from "./components/Navbar";
 
-function GenerateKeys({ username }) {
-  const [publicKey, setPublicKey] = useState(null);
-  const [privateKey, setPrivateKey] = useState(null);
-
-  const generateKeys = () => {
-    const { privateKey, publicKey } = forge.pki.rsa.generateKeyPair({ bits: 2048, e: 0x10001 });
-
-    // Convert keys to PEM format
-    const privatePem = forge.pki.privateKeyToPem(privateKey);
-    const publicPem = forge.pki.publicKeyToPem(publicKey);
-
-    // Save or set the keys as needed
-    setPrivateKey(privatePem);
-    setPublicKey(publicPem);
-
-    // Optionally download the private key file
-    const blob = new Blob([privatePem], { type: 'application/x-pem-file' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${username}_private_key.pem`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  return (
-    <div>
-      <button onClick={generateKeys}>Generate Keys</button>
-      {publicKey && (
-        <div>
-          <h3>Public Key:</h3>
-          <textarea value={publicKey} readOnly rows={10} cols={50} />
-        </div>
-      )}
-      {privateKey && (
-        <div>
-          <h3>Private Key:</h3>
-          <textarea value={privateKey} readOnly rows={10} cols={50} />
-        </div>
-      )}
-    </div>
-  );
+function Logout() {
+  localStorage.clear();
+  return <Navigate to="/login" />;
 }
 
-export default GenerateKeys;
+const App = () => {
+  return (
+    <Router>
+      <div className="app">
+        <Navbar />
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/logout" element={<Logout />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route
+            path="/"
+            element={
+              <PrivateRoute>
+                <Home />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/private-key"
+            element={
+              <PrivateRoute>
+                <PrivateKey />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/answer-sheets"
+            element={
+              <PrivateRoute>
+                <AnswerSheetUpload />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/answer-sheets/view"
+            element={
+              <PrivateRoute>
+                <AnswerSheetView />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/co/compute"
+            element={
+              <PrivateRoute>
+                <COCompute />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/logs"
+            element={
+              <PrivateRoute>
+                <LogView />
+              </PrivateRoute>
+            }
+          />
+        </Routes>
+      </div>
+    </Router>
+  );
+};
+
+export default App;
